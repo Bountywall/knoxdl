@@ -40,7 +40,7 @@ export default {
     }
 
     // ── Download proxy route ──────────────────────────────────────────────────
-    if (url.pathname === '/api/download') {
+    if (url.searchParams.get('download') === '1') {
       const videoUrl = url.searchParams.get('url');
       if (!videoUrl) {
         return new Response(JSON.stringify({ error: 'Missing url parameter.' }), {

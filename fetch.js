@@ -1,3 +1,31 @@
+function getToken(id) {
+  return ((Number(id) / 1e15) * Math.PI)
+    .toString(36)
+    .replace(/(0+|\.)/g, '');
+}
+
+function extractVariants(data) {
+  const variants = [];
+  const mediaItems = data?.mediaDetails || data?.entities?.media || [];
+  for (const media of mediaItems) {
+    if (media.type === 'video' || media.type === 'animated_gif') {
+      const videoInfo = media.video_info;
+      if (videoInfo?.variants) {
+        for (const v of videoInfo.variants) {
+          if (v.content_type === 'video/mp4' && v.url) {
+            const entry = { url: v.url };
+            if (v.bitrate !== undefined) entry.bitrate = v.bitrate;
+            const resMatch = v.url.match(/\/(\d+x\d+)\//);
+            if (resMatch) entry.resolution = resMatch[1].replace('x', ' × ') + 'p';
+            variants.push(entry);
+          }
+        }
+      }
+    }
+  }
+  return variants;
+}
+
 export default {
   async fetch(request) {
     const url = new URL(request.url);
@@ -27,7 +55,8 @@ export default {
     }
 
     const tweetId = tweetIdMatch[1];
-    const syndicationUrl = `https://cdn.syndication.twimg.com/tweet-result?id=${tweetId}&lang=en&features=tfw_timeline_list%3A%3Btfw_follower_count_sunset%3Atrue&token=x`;
+    const token = getToken(tweetId);
+    const syndicationUrl = `https://cdn.syndication.twimg.com/tweet-result?id=${tweetId}&token=${token}`;
 
     try {
       const res = await fetch(syndicationUrl, {
@@ -46,25 +75,7 @@ export default {
       }
 
       const tweetData = await res.json();
-      const variants = [];
-      const mediaItems = tweetData?.mediaDetails || tweetData?.entities?.media || [];
-
-      for (const media of mediaItems) {
-        if (media.type === 'video' || media.type === 'animated_gif') {
-          const videoInfo = media.video_info;
-          if (videoInfo?.variants) {
-            for (const v of videoInfo.variants) {
-              if (v.content_type === 'video/mp4' && v.url) {
-                const entry = { url: v.url };
-                if (v.bitrate !== undefined) entry.bitrate = v.bitrate;
-                const resMatch = v.url.match(/\/(\d+x\d+)\//);
-                if (resMatch) entry.resolution = resMatch[1].replace('x', ' × ') + 'p';
-                variants.push(entry);
-              }
-            }
-          }
-        }
-      }
+      const variants = extractVariants(tweetData);
 
       if (variants.length === 0) {
         return new Response(JSON.stringify({ error: 'No video found in this post.' }), {

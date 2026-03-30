@@ -1,9 +1,8 @@
 // KnoxDL — app.js
 // Handles video URL fetching and quality selection UI.
-// The actual API call goes to /api/fetch — you implement this serverless function
-// on Cloudflare Workers (see README for full setup instructions).
 
 const PROXY_ENDPOINT = 'https://knoxdl.joshast772on.workers.dev/api/fetch';
+const DOWNLOAD_ENDPOINT = 'https://knoxdl.joshast772on.workers.dev/api/download';
 
 async function fetchVideo() {
   const input = document.getElementById('videoUrl');
@@ -81,7 +80,7 @@ function showQualityOptions(variants) {
     const label = getQualityLabel(v, i === 0, variants.length);
     const btn = document.createElement('a');
     btn.className = 'quality-btn' + (i === 0 ? ' best' : '');
-    btn.href = v.url;
+    btn.href = `${DOWNLOAD_ENDPOINT}?url=${encodeURIComponent(v.url)}`;
     btn.target = '_blank';
     btn.rel = 'noopener noreferrer';
     btn.setAttribute('download', '');

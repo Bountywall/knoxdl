@@ -95,4 +95,3 @@ function json(data, status, headers) {
 
 Commit this, wait for deployment, then test by visiting:
 ```
-https://knoxdl.joshast772on.workers.dev/api/fetch?url=https://x.com/Twitter/status/1445078208190291973

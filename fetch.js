@@ -29,7 +29,6 @@ function extractVariants(data) {
 export default {
   async fetch(request) {
     const url = new URL(request.url);
-
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, OPTIONS',
@@ -40,6 +39,36 @@ export default {
       return new Response(null, { headers: corsHeaders });
     }
 
+    // ── Download proxy route ──────────────────────────────────────────────────
+    if (url.pathname === '/api/download') {
+      const videoUrl = url.searchParams.get('url');
+      if (!videoUrl) {
+        return new Response(JSON.stringify({ error: 'Missing url parameter.' }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      const videoRes = await fetch(videoUrl, {
+        headers: {
+          'Referer': 'https://twitter.com/',
+          'Origin': 'https://twitter.com',
+        }
+      });
+
+      const filename = videoUrl.match(/\/([^/?]+\.mp4)/)?.[1] || 'video.mp4';
+
+      return new Response(videoRes.body, {
+        status: 200,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'video/mp4',
+          'Content-Disposition': `attachment; filename="${filename}"`,
+          'Content-Length': videoRes.headers.get('Content-Length') || '',
+        }
+      });
+    }
+
+    // ── Fetch tweet variants route ────────────────────────────────────────────
     const tweetUrl = url.searchParams.get('url');
     if (!tweetUrl) {
       return new Response(JSON.stringify({ error: 'Missing url parameter.' }), {

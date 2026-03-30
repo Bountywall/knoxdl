@@ -3,7 +3,7 @@
 // The actual API call goes to /api/fetch — you implement this serverless function
 // on Cloudflare Workers (see README for full setup instructions).
 
-const PROXY_ENDPOINT = 'https://knoxdl.joshast772on.workers.dev';
+const PROXY_ENDPOINT = 'https://knoxdl.joshast772on.workers.dev/api/fetch';
 
 async function fetchVideo() {
   const input = document.getElementById('videoUrl');

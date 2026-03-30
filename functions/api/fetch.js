@@ -55,7 +55,7 @@ export default {
         }
       });
 
-      const filename = videoUrl.match(/\/([^/?#]+\.mp4)/i)?.[1] || 'knoxdl-video.mp4';
+      const filename = (videoUrl.match(/\/([^/?#]+?)(?:\?.*)?$/)?.[1] || 'knoxdl-video').replace(/[^a-zA-Z0-9_-]/g, '_') + '.mp4';
 
       return new Response(videoRes.body, {
         status: 200,

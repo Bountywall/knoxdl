@@ -1,9 +1,7 @@
 // KnoxDL — app.js
-// Handles video URL fetching and quality selection UI.
 
-// ✅ FIX 1: Removed /api/fetch — the Worker lives at the root, no subpath
-const PROXY_ENDPOINT = 'https://knoxdl.com/api/fetch';
-const DOWNLOAD_ENDPOINT = 'https://knoxdl.com';
+const PROXY_ENDPOINT = 'https://knoxdl.joshast772on.workers.dev';
+const DOWNLOAD_ENDPOINT = 'https://knoxdl.joshast772on.workers.dev';
 
 async function fetchVideo() {
   const input = document.getElementById('videoUrl');
@@ -28,11 +26,11 @@ async function fetchVideo() {
     const data = await res.json();
 
     if (!res.ok || data.error) {
-      throw new Error(data.error || 'Unable to fetch video. The post may be private or contain no video.');
+      throw new Error(data.error || 'Unable to fetch video.');
     }
 
     if (!data.variants || data.variants.length === 0) {
-      throw new Error('No downloadable video found in this post. Make sure the post actually contains a video.');
+      throw new Error('No downloadable video found in this post.');
     }
 
     showQualityOptions(data.variants);
@@ -79,10 +77,6 @@ function showQualityOptions(variants) {
 
   variants.forEach((v, i) => {
     const label = getQualityLabel(v, i === 0, variants.length);
-
-    // ✅ FIX 2: Use <button> + fetch blob instead of <a download> across origins.
-    // The download attribute only works same-origin. On a cross-origin Worker URL
-    // the browser ignores it and navigates instead — causing the page reload bug.
     const btn = document.createElement('button');
     btn.className = 'quality-btn' + (i === 0 ? ' best' : '');
     btn.type = 'button';
@@ -136,7 +130,7 @@ async function triggerDownload(videoUrl, btn) {
   } catch (err) {
     btn.innerHTML = originalHTML;
     btn.disabled = false;
-    showError('Download failed. Please try again or try a different quality.');
+    showError('Download failed. Please try again.');
   }
 }
 

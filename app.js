@@ -1,7 +1,7 @@
 // KnoxDL — app.js
 
 const PROXY_ENDPOINT = 'https://knoxdl.com/api/fetch';
-const DOWNLOAD_ENDPOINT = 'https://knoxdl.com';
+const DOWNLOAD_ENDPOINT = 'https://knoxdl.com/api/fetch';
 
 
 async function fetchVideo() {

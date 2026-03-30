@@ -1,11 +1,11 @@
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    const tweetUrl = url.searchParams.get('url');
 
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
       'Content-Type': 'application/json',
     };
 
@@ -13,6 +13,11 @@ export default {
       return new Response(null, { headers: corsHeaders });
     }
 
+    if (url.pathname !== '/api/fetch') {
+      return env.ASSETS.fetch(request);
+    }
+
+    const tweetUrl = url.searchParams.get('url');
     if (!tweetUrl) {
       return json({ error: 'Missing url parameter.' }, 400, corsHeaders);
     }
@@ -49,7 +54,6 @@ export default {
     }
 
     const variants = extractVariants(tweetData);
-
     if (!variants || variants.length === 0) {
       return json({ error: 'No video found in this post.' }, 422, corsHeaders);
     }
@@ -78,7 +82,6 @@ function extractVariants(data) {
       }
     }
   }
-
   return variants;
 }
 
@@ -88,3 +91,8 @@ function json(data, status, headers) {
     headers: { ...headers, 'Content-Type': 'application/json' },
   });
 }
+```
+
+Commit this, wait for deployment, then test by visiting:
+```
+https://knoxdl.joshast772on.workers.dev/api/fetch?url=https://x.com/Twitter/status/1445078208190291973

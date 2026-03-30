@@ -1,5 +1,4 @@
 // KnoxDL — app.js
-// Handles video URL fetching and quality selection UI.
 
 const PROXY_ENDPOINT = 'https://knoxdl.joshast772on.workers.dev/api/fetch';
 const DOWNLOAD_ENDPOINT = 'https://knoxdl.joshast772on.workers.dev';
@@ -16,7 +15,7 @@ async function fetchVideo() {
   }
 
   if (!isValidXUrl(url)) {
-    showError('That doesn\'t look like a valid X post link. Make sure it\'s in the format: https://x.com/user/status/...');
+    showError("That doesn't look like a valid X post link. Make sure it's in the format: https://x.com/user/status/...");
     return;
   }
 
@@ -70,7 +69,6 @@ function hideStatus() {
 function showQualityOptions(variants) {
   hideStatus();
 
-  // Sort by bitrate descending (highest quality first)
   variants.sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
 
   const container = document.getElementById('qualityButtons');
@@ -78,29 +76,62 @@ function showQualityOptions(variants) {
 
   variants.forEach((v, i) => {
     const label = getQualityLabel(v, i === 0, variants.length);
-    const btn = document.createElement('a');
+    const btn = document.createElement('button');
     btn.className = 'quality-btn' + (i === 0 ? ' best' : '');
-    btn.href = v.url;
-    btn.target = '_blank';
-    btn.rel = 'noopener noreferrer';
-    btn.setAttribute('download', '');
+    btn.type = 'button';
+
+    const svgIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`;
 
     if (i === 0) {
-      btn.innerHTML = `
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        ${label} <span class="badge">Best</span>
-      `;
+      btn.innerHTML = `${svgIcon} ${label} <span class="badge">Best</span>`;
     } else {
-      btn.innerHTML = `
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        ${label}
-      `;
+      btn.innerHTML = `${svgIcon} ${label}`;
     }
 
+    btn.addEventListener('click', () => triggerDownload(v.url, btn));
     container.appendChild(btn);
   });
 
   document.getElementById('qualityResults').style.display = 'block';
+}
+
+async function triggerDownload(videoUrl, btn) {
+  const originalHTML = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = `
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="animation:spin .75s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+    Preparing…
+  `;
+
+  try {
+    const proxyUrl = `${DOWNLOAD_ENDPOINT}?download=1&url=${encodeURIComponent(videoUrl)}`;
+    const res = await fetch(proxyUrl);
+    if (!res.ok) throw new Error('Download failed');
+
+    const blob = await res.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const filename = videoUrl.match(/\/([^/?#]+\.mp4)/i)?.[1] || 'knoxdl-video.mp4';
+
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+
+    btn.innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      Saved!
+    `;
+    setTimeout(() => { btn.innerHTML = originalHTML; btn.disabled = false; }, 2500);
+
+  } catch (err) {
+    btn.innerHTML = originalHTML;
+    btn.disabled = false;
+    // fallback — open directly in new tab
+    window.open(videoUrl, '_blank');
+  }
 }
 
 function getQualityLabel(variant, isBest, total) {
@@ -137,27 +168,21 @@ function clearResults() {
   document.getElementById('qualityButtons').innerHTML = '';
 }
 
-// Allow pressing Enter in the input field
 document.getElementById('videoUrl').addEventListener('keydown', function(e) {
   if (e.key === 'Enter') fetchVideo();
 });
 
-// ===== FAQ accordion =====
 function toggleFaq(btn) {
   const answer = btn.nextElementSibling;
   const isOpen = answer.classList.contains('open');
-
-  // Close all
   document.querySelectorAll('.faq-a').forEach(a => a.classList.remove('open'));
   document.querySelectorAll('.faq-q').forEach(q => q.classList.remove('active'));
-
   if (!isOpen) {
     answer.classList.add('open');
     btn.classList.add('active');
   }
 }
 
-// ===== Mobile nav =====
 document.getElementById('navToggle').addEventListener('click', function() {
   document.getElementById('navMobile').classList.toggle('open');
 });

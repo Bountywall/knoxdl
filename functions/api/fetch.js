@@ -26,40 +26,33 @@ function extractVariants(data) {
   return variants;
 }
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
-};
+export default {
+  async fetch(request) {
+    const url = new URL(request.url);
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    };
 
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
-}
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { headers: corsHeaders });
+    }
 
-export async function onRequestOptions() {
-  return new Response(null, { headers: corsHeaders });
-}
+    if (url.searchParams.get('download') === '1') {
+      const videoUrl = url.searchParams.get('url');
+      if (!videoUrl) {
+        return new Response(JSON.stringify({ error: 'Missing url parameter.' }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
 
-export async function onRequestGet(context) {
-  const url = new URL(context.request.url);
-
-  // ── Download proxy (?download=1&url=...) ─────────────────────────────────
-  if (url.searchParams.get('download') === '1') {
-    const videoUrl = url.searchParams.get('url');
-    if (!videoUrl) return json({ error: 'Missing url parameter.' }, 400);
-
-    try {
       const videoRes = await fetch(videoUrl, {
         headers: {
           'Referer': 'https://twitter.com/',
           'Origin': 'https://twitter.com',
         }
       });
-
-      if (!videoRes.ok) throw new Error(`Upstream ${videoRes.status}`);
 
       const filename = videoUrl.match(/\/([^/?#]+\.mp4)/i)?.[1] || 'knoxdl-video.mp4';
 
@@ -72,42 +65,59 @@ export async function onRequestGet(context) {
           'Content-Length': videoRes.headers.get('Content-Length') || '',
         }
       });
+    }
+
+    const tweetUrl = url.searchParams.get('url');
+    if (!tweetUrl) {
+      return new Response(JSON.stringify({ error: 'Missing url parameter.' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const tweetIdMatch = tweetUrl.match(/\/status\/(\d+)/);
+    if (!tweetIdMatch) {
+      return new Response(JSON.stringify({ error: 'Invalid X post URL.' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const tweetId = tweetIdMatch[1];
+    const token = getToken(tweetId);
+    const syndicationUrl = `https://cdn.syndication.twimg.com/tweet-result?id=${tweetId}&token=${token}`;
+
+    try {
+      const res = await fetch(syndicationUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; knoxdl/1.0)',
+          'Accept': 'application/json',
+          'Referer': 'https://platform.twitter.com/',
+          'Origin': 'https://platform.twitter.com',
+        },
+      });
+
+      if (!res.ok) {
+        return new Response(JSON.stringify({ error: 'Tweet not found or private.' }), {
+          status: res.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      const tweetData = await res.json();
+      const variants = extractVariants(tweetData);
+
+      if (variants.length === 0) {
+        return new Response(JSON.stringify({ error: 'No video found in this post.' }), {
+          status: 422, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      return new Response(JSON.stringify({ variants }), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+
     } catch (err) {
-      return json({ error: 'Failed to proxy video.' }, 500);
+      return new Response(JSON.stringify({ error: 'Failed to fetch tweet data.' }), {
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
   }
-
-  // ── Tweet variant fetch (?url=https://x.com/...) ─────────────────────────
-  const tweetUrl = url.searchParams.get('url');
-  if (!tweetUrl) return json({ error: 'Missing url parameter.' }, 400);
-
-  const tweetIdMatch = tweetUrl.match(/\/status\/(\d+)/);
-  if (!tweetIdMatch) return json({ error: 'Invalid X post URL.' }, 400);
-
-  const tweetId = tweetIdMatch[1];
-  const token = getToken(tweetId);
-  const syndicationUrl = `https://cdn.syndication.twimg.com/tweet-result?id=${tweetId}&token=${token}`;
-
-  try {
-    const res = await fetch(syndicationUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; knoxdl/1.0)',
-        'Accept': 'application/json',
-        'Referer': 'https://platform.twitter.com/',
-        'Origin': 'https://platform.twitter.com',
-      },
-    });
-
-    if (!res.ok) return json({ error: 'Tweet not found or private.' }, res.status);
-
-    const tweetData = await res.json();
-    const variants = extractVariants(tweetData);
-
-    if (variants.length === 0) return json({ error: 'No video found in this post.' }, 422);
-
-    return json({ variants });
-
-  } catch (err) {
-    return json({ error: 'Failed to fetch tweet data.' }, 500);
-  }
-}
+};
